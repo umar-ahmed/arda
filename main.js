@@ -104,6 +104,12 @@ function perlin(s, t) {
 }
 
 function render(s, t) {
+  // return constant(0.5);
+  // return verticalGradient(s, t);
+  // return horizontalGradient(s, t);
+  // return diagonalGradient(s, t);
+  // return radialGradient(s, t);
+  // return srand(s, t);
   return perlin(s * 10, t * 10);
 }
 
