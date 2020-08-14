@@ -15,6 +15,8 @@ const fract = (x) => x - floor(x);
 const mix = (a, b, t) => (1 - t) * a + t * b;
 const clamp = (x, minVal, maxVal) => min(maxVal, max(minVal, x));
 const dot2 = ([a0, a1], [b0, b1]) => a0 * b0 + a1 * b1;
+const norm2 = (a) => sqrt(dot2(a, a));
+const normalize2 = ([a0, a1]) => [a0 / norm2([a0, a1]), a1 / norm2([a0, a1])];
 
 function random_direction([s, t]) {
   const u = srand(s, t);
@@ -62,7 +64,7 @@ function radialGradient(s, t) {
 }
 
 function srand(s, t) {
-  return fract(sin(s * 269.5 + t * 183.3) * 43758.5453123);
+  return fract(sin(s * 12.9898 + t * 78.233) * 43758.5453123);
 }
 
 function perlin(s, t) {
@@ -100,7 +102,7 @@ function perlin(s, t) {
   const vb = mix(d01, d11, wS);
   const vc = mix(va, vb, wT);
 
-  return vc;
+  return remap(vc, [-0.5, 0.5], [0, 1]);
 }
 
 function render(s, t) {
@@ -110,7 +112,7 @@ function render(s, t) {
   // return diagonalGradient(s, t);
   // return radialGradient(s, t);
   // return srand(s, t);
-  return perlin(s * 10, t * 10);
+  return perlin(s * 20, t * 20);
 }
 
 function main() {
@@ -132,7 +134,8 @@ function main() {
     const s = remap(x, [0, WIDTH], [0.0, 1.0]);
     const t = remap(y, [0, HEIGHT], [0.0, 1.0]);
 
-    const v = remap(render(s, t), [0.0, 1.0], [0, 255]);
+    const r = render(s, t);
+    const v = remap(r, [0.0, 1.0], [0, 255]);
 
     heightmap[i] = heightmap[i + 1] = heightmap[i + 2] = v;
     heightmap[i + 3] = 255;
