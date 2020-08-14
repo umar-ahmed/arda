@@ -105,6 +105,15 @@ function perlin(s, t) {
   return remap(vc, [-0.5, 0.5], [0, 1]);
 }
 
+function terrain(s, t) {
+  return (
+    0.6 * perlin(s, t) +
+    0.2 * perlin(2 * s, 2 * t) +
+    0.1 * perlin(5 * s, 5 * t) +
+    0.05 * perlin(10 * s, 10 * t)
+  );
+}
+
 function render(s, t) {
   // return constant(0.5);
   // return verticalGradient(s, t);
@@ -112,7 +121,8 @@ function render(s, t) {
   // return diagonalGradient(s, t);
   // return radialGradient(s, t);
   // return srand(s, t);
-  return perlin(s * 2, t * 2);
+  // return perlin(s * 2, t * 2);
+  return terrain(s, t);
 }
 
 function generate() {

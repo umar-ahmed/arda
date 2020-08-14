@@ -28,7 +28,7 @@ Here are the tasks that I hope to accomplish in order to achieve a Minimum Viabl
 - [x] Solid color
 - [x] Gradient
 - [x] Perlin noise
-- [ ] Display a 3D preview of the heightmap using ThreeJS
+- [x] Display a 3D preview of the heightmap using ThreeJS
 - [ ] Implement hydraulic erosion
 - [ ] Load an image from disk
 - [ ] Mix node
