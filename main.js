@@ -4,7 +4,7 @@ const WIDTH = 256;
 const HEIGHT = 256;
 
 function render(s, t) {
-  return [s, t, 0.5, 1.0];
+  return s;
 }
 
 function main() {
@@ -26,12 +26,12 @@ function main() {
     const s = x / WIDTH;
     const t = y / HEIGHT;
 
-    const [r, g, b, a] = render(s, t);
+    const v = render(s, t);
 
-    heightmap[i] = r * 255;
-    heightmap[i + 1] = g * 255;
-    heightmap[i + 2] = b * 255;
-    heightmap[i + 3] = a * 255;
+    heightmap[i] = v * 255;
+    heightmap[i + 1] = v * 255;
+    heightmap[i + 2] = v * 255;
+    heightmap[i + 3] = 255;
   }
 
   ctx.putImageData(imageData, 0, 0);
