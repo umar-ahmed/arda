@@ -5,6 +5,9 @@ const HEIGHT = 256;
 
 const pow = Math.pow;
 const sqrt = Math.sqrt;
+const floor = Math.floor;
+const fract = (x) => x - floor(x);
+const sin = Math.sin;
 
 function constant(v) {
   return v;
@@ -26,8 +29,12 @@ function radialGradient(s, t) {
   return 1 - sqrt(pow(s - 0.5, 2) + pow(t - 0.5, 2));
 }
 
+function srand(s, t) {
+  return fract(sin(s * 269.5 + t * 183.3) * 43758.5453123);
+}
+
 function render(s, t) {
-  return radialGradient(s, t);
+  return srand(s, t);
 }
 
 function main() {
