@@ -24,9 +24,9 @@ With the improvements in the capabilities of the web platform in the past couple
 Here are the tasks that I hope to accomplish in order to achieve a Minimum Viable Product (MVP):
 
 - [x] Set up HTML and JS files
-- [ ] Create a `canvas` and render an in-memory representation of the heightmap on it
-- [ ] Solid color
-- [ ] Gradient
+- [x] Create a `canvas` and render an in-memory representation of the heightmap on it
+- [x] Solid color
+- [x] Gradient
 - [ ] Perlin noise
 - [ ] Display a 3D preview of the heightmap using ThreeJS
 - [ ] Implement hydraulic erosion

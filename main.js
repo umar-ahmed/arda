@@ -3,8 +3,31 @@ window.addEventListener("DOMContentLoaded", main);
 const WIDTH = 256;
 const HEIGHT = 256;
 
-function render(s, t) {
+const pow = Math.pow;
+const sqrt = Math.sqrt;
+
+function constant(v) {
+  return v;
+}
+
+function verticalGradient(s, t) {
+  return t;
+}
+
+function horizontalGradient(s, t) {
   return s;
+}
+
+function diagonalGradient(s, t) {
+  return (s + t) / 2;
+}
+
+function radialGradient(s, t) {
+  return 1 - sqrt(pow(s - 0.5, 2) + pow(t - 0.5, 2));
+}
+
+function render(s, t) {
+  return radialGradient(s, t);
 }
 
 function main() {
