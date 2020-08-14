@@ -27,7 +27,7 @@ Here are the tasks that I hope to accomplish in order to achieve a Minimum Viabl
 - [x] Create a `canvas` and render an in-memory representation of the heightmap on it
 - [x] Solid color
 - [x] Gradient
-- [ ] Perlin noise
+- [x] Perlin noise
 - [ ] Display a 3D preview of the heightmap using ThreeJS
 - [ ] Implement hydraulic erosion
 - [ ] Load an image from disk
