@@ -23,7 +23,7 @@ With the improvements in the capabilities of the web platform in the past couple
 
 Here are the tasks that I hope to accomplish in order to achieve a Minimum Viable Product (MVP):
 
-- [ ] Set up HTML and JS files
+- [x] Set up HTML and JS files
 - [ ] Create a `canvas` and render an in-memory representation of the heightmap on it
 - [ ] Solid color
 - [ ] Gradient
