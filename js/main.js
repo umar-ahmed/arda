@@ -112,7 +112,7 @@ function render(s, t) {
   // return diagonalGradient(s, t);
   // return radialGradient(s, t);
   // return srand(s, t);
-  return perlin(s * 20, t * 20);
+  return perlin(s * 2, t * 2);
 }
 
 function generate() {
@@ -144,14 +144,15 @@ function generate() {
   ctx.putImageData(imageData, 0, 0);
 
   console.log("done");
+  return imageData;
 }
 
 function main() {
-  generate();
+  const imageData = generate();
 
   const scene = new THREE.Scene();
   const camera = new THREE.PerspectiveCamera(
-    75,
+    45,
     window.innerWidth / window.innerHeight,
     0.1,
     1000
@@ -161,18 +162,38 @@ function main() {
   renderer.setSize(window.innerWidth, window.innerHeight);
   document.body.appendChild(renderer.domElement);
 
-  const geometry = new THREE.BoxGeometry();
-  const material = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
-  const cube = new THREE.Mesh(geometry, material);
-  scene.add(cube);
+  const geometry = new THREE.PlaneGeometry(0, 0, WIDTH - 1, HEIGHT - 1);
+  const wireframe = new THREE.WireframeGeometry(geometry);
+  const material = new THREE.MeshLambertMaterial({
+    color: 0x00ff00,
+    side: THREE.DoubleSide,
+  });
+  const plane = new THREE.Mesh(geometry, material);
+  scene.add(plane);
 
-  camera.position.z = 5;
+  var light = new THREE.AmbientLight(0x404040); // soft white light
+  scene.add(light);
+
+  var directionalLight = new THREE.DirectionalLight(0xffffff, 0.5);
+  scene.add(directionalLight);
+
+  camera.position.z = 3;
+  camera.position.y = 1;
+
+  plane.rotation.x = -PI / 2;
+
+  for (let i = 0; i < plane.geometry.vertices.length; i++) {
+    const terrainValue = imageData.data[4 * i] / 255;
+    plane.geometry.vertices[i].z = terrainValue;
+  }
+
+  geometry.computeFaceNormals();
+  geometry.computeVertexNormals();
 
   function animate() {
     requestAnimationFrame(animate);
 
-    cube.rotation.x += 0.01;
-    cube.rotation.y += 0.01;
+    plane.rotation.z += 0.01;
 
     renderer.render(scene, camera);
   }
