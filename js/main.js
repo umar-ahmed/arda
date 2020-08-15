@@ -261,28 +261,31 @@ const FRICTION = 0.02;
 const EVAPORATION_RATE = 0.01;
 const DEPOSITION_RATE = 0.2;
 const EROSION_RATE = 0.3;
+const dt = 1 / 1000;
 
 function erosion(data) {
-  for (let t = 0; t < 10; t++) {
+  for (let t = 0; t < 2000; t++) {
     const p = new Particle(srand(t, 6), srand(1, t));
     // const { x, y } = p.position;
     // setPixelValue(data, x, y, [1.0, 0.0, 0, 1.0]);
 
     while (p.volume > MIN_VOLUME) {
       const { x, y } = p.position;
-      const [ax, ay] = getSurfaceNormal(data, x, y);
+      const [Fx, Fy] = getSurfaceNormal(data, x, y);
+      const mass = p.volume * PARTICLE_DENSITY;
+      const [ax, ay] = [Fx / mass, Fy / mass];
 
-      // Accelerate particle
-      p.velocity.x += ax / 1000 / (p.volume * PARTICLE_DENSITY);
-      p.velocity.y += ay / 1000 / (p.volume * PARTICLE_DENSITY);
+      // Acceleration due to gravity
+      p.velocity.x += dt * ax;
+      p.velocity.y += dt * ay;
+
+      // Acceleration due to friction
+      p.velocity.x *= 1.0 - FRICTION;
+      p.velocity.y *= 1.0 - FRICTION;
 
       // Update particle position
       p.position.x += p.velocity.x;
       p.position.y += p.velocity.y;
-
-      // Apply friction
-      p.velocity.x *= 1.0 - FRICTION;
-      p.velocity.y *= 1.0 - FRICTION;
 
       // Stop simulating particle if it has stopped moving or exceeded bounds
       if (
@@ -307,19 +310,19 @@ function erosion(data) {
             ? min(deltaHeight, p.sediment)
             : (p.sediment - maxSediment) * DEPOSITION_RATE;
         p.sediment -= amountToDeposit;
-        setHeightMapValue(data, x, y, oldHeight + amountToDeposit);
+        setHeightMapValue(data, x, y, 0.5); //oldHeight + amountToDeposit);
       } else {
         const amountToErode = min(
           (maxSediment - p.sediment) * EROSION_RATE,
           -deltaHeight
         );
         p.sediment += amountToErode;
-        setHeightMapValue(data, x, y, oldHeight - amountToErode);
+        setHeightMapValue(data, x, y, 0.5); //oldHeight - amountToErode);
       }
 
       p.volume *= 1.0 - EVAPORATION_RATE;
 
-      setPixelValue(data, x, y, [1.0, p.volume, 1.0, 1.0]);
+      // setPixelValue(data, x, y, [1.0, p.volume, 1.0, 1.0]);
     }
   }
 }
