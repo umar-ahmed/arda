@@ -128,7 +128,7 @@ function render(s, t) {
 function generate() {
   console.log("start");
 
-  const canvas = document.getElementById("canvas");
+  const canvas = document.getElementById("heightmap");
   const ctx = canvas.getContext("2d");
 
   const imageData = ctx.getImageData(0, 0, WIDTH, HEIGHT);
