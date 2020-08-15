@@ -257,14 +257,14 @@ function getSurfaceNormal(data, x, y) {
 
 const MIN_VOLUME = 0.1;
 const PARTICLE_DENSITY = 1.0;
-const FRICTION = 0.02;
-const EVAPORATION_RATE = 0.01;
+const FRICTION = 0.1;
+const EVAPORATION_RATE = 0.1;
 const DEPOSITION_RATE = 0.2;
 const EROSION_RATE = 0.3;
-const dt = 1 / 1000;
+const dt = 1 / 100;
 
 function erosion(data) {
-  for (let t = 0; t < 2000; t++) {
+  for (let t = 0; t < 20; t++) {
     const p = new Particle(srand(t, 6), srand(1, t));
     // const { x, y } = p.position;
     // setPixelValue(data, x, y, [1.0, 0.0, 0, 1.0]);
@@ -279,13 +279,13 @@ function erosion(data) {
       p.velocity.x += dt * ax;
       p.velocity.y += dt * ay;
 
-      // Acceleration due to friction
-      p.velocity.x *= 1.0 - FRICTION;
-      p.velocity.y *= 1.0 - FRICTION;
-
       // Update particle position
-      p.position.x += p.velocity.x;
-      p.position.y += p.velocity.y;
+      p.position.x += dt * p.velocity.x;
+      p.position.y += dt * p.velocity.y;
+
+      // Acceleration due to friction
+      p.velocity.x *= 1.0 - dt * FRICTION;
+      p.velocity.y *= 1.0 - dt * FRICTION;
 
       // Stop simulating particle if it has stopped moving or exceeded bounds
       if (
@@ -300,29 +300,29 @@ function erosion(data) {
       const oldHeight = getHeightMapValue(data, x, y);
       const newHeight = getHeightMapValue(data, p.position.x, p.position.y);
       const deltaHeight = newHeight - oldHeight;
+      const uphill = deltaHeight > 0;
       const speed = norm2([p.velocity.x, p.velocity.y]);
       const maxSediment = max(-deltaHeight * p.volume * speed, 0.0);
 
       // If carrying more sediment than capacity, or if flowing uphill:
-      if (p.sediment > maxSediment || deltaHeight > 0) {
-        const amountToDeposit =
-          deltaHeight > 0
-            ? min(deltaHeight, p.sediment)
-            : (p.sediment - maxSediment) * DEPOSITION_RATE;
+      if (p.sediment > maxSediment || uphill) {
+        const amountToDeposit = uphill
+          ? min(deltaHeight, p.sediment)
+          : (p.sediment - maxSediment) * dt * DEPOSITION_RATE;
         p.sediment -= amountToDeposit;
-        setHeightMapValue(data, x, y, 0.5); //oldHeight + amountToDeposit);
+        setHeightMapValue(data, x, y, oldHeight + amountToDeposit);
       } else {
         const amountToErode = min(
-          (maxSediment - p.sediment) * EROSION_RATE,
+          (maxSediment - p.sediment) * dt * EROSION_RATE,
           -deltaHeight
         );
         p.sediment += amountToErode;
-        setHeightMapValue(data, x, y, 0.5); //oldHeight - amountToErode);
+        setHeightMapValue(data, x, y, oldHeight - amountToErode);
       }
 
-      p.volume *= 1.0 - EVAPORATION_RATE;
+      p.volume *= 1.0 - dt * EVAPORATION_RATE;
 
-      // setPixelValue(data, x, y, [1.0, p.volume, 1.0, 1.0]);
+      setPixelValue(data, x, y, [1.0, p.volume, 1.0, 1.0]);
     }
   }
 }
