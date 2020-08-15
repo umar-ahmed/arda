@@ -118,21 +118,15 @@ function render(s, t) {
   // return constant(0.5);
   // return verticalGradient(s, t);
   // return horizontalGradient(s, t);
-  // return diagonalGradient(s, t);
+  return diagonalGradient(s, t);
   // return radialGradient(s, t);
   // return srand(s, t);
   // return perlin(s * 2, t * 2);
   return terrain(s, t);
 }
 
-function generate() {
-  console.log("start");
-
-  const canvas = document.getElementById("heightmap");
-  const ctx = canvas.getContext("2d");
-
-  const imageData = ctx.getImageData(0, 0, WIDTH, HEIGHT);
-  const heightmap = imageData.data;
+function generate(heightmap) {
+  console.log("start generate");
 
   // Update heightmap
   for (let i = 0; i < heightmap.length; i += 4) {
@@ -151,15 +145,10 @@ function generate() {
     heightmap[i + 3] = 255;
   }
 
-  ctx.putImageData(imageData, 0, 0);
-
-  console.log("done");
-  return imageData;
+  console.log("done generate");
 }
 
-function main() {
-  const imageData = generate();
-
+function display3D(data) {
   const scene = new THREE.Scene();
   const camera = new THREE.PerspectiveCamera(
     45,
@@ -173,7 +162,6 @@ function main() {
   document.body.appendChild(renderer.domElement);
 
   const geometry = new THREE.PlaneGeometry(0, 0, WIDTH - 1, HEIGHT - 1);
-  const wireframe = new THREE.WireframeGeometry(geometry);
   const material = new THREE.MeshLambertMaterial({
     color: 0x00ff00,
     side: THREE.DoubleSide,
@@ -193,7 +181,7 @@ function main() {
   plane.rotation.x = -PI / 2;
 
   for (let i = 0; i < plane.geometry.vertices.length; i++) {
-    const terrainValue = imageData.data[4 * i] / 255;
+    const terrainValue = data[4 * i] / 255;
     plane.geometry.vertices[i].z = terrainValue;
   }
 
@@ -209,4 +197,92 @@ function main() {
   }
 
   animate();
+}
+
+class Particle {
+  constructor(x, y) {
+    this.position = {
+      x,
+      y,
+    };
+    this.velocity = {
+      x: 0.0,
+      y: 0.0,
+    };
+    this.volume = 1.0;
+    this.sediment = 0.0;
+  }
+}
+
+function getPixelValue(data, x, y) {
+  const X = floor(x * WIDTH);
+  const Y = floor(y * HEIGHT);
+  const i = (Y * HEIGHT + X) * 4;
+  const r = remap(data[i + 0], [0, 255], [0.0, 1.0]);
+  const g = remap(data[i + 1], [0, 255], [0.0, 1.0]);
+  const b = remap(data[i + 2], [0, 255], [0.0, 1.0]);
+  const a = remap(data[i + 3], [0, 255], [0.0, 1.0]);
+  return [r, g, b, a];
+}
+
+function setPixelValue(data, x, y, rgba) {
+  const [r, g, b, a] = rgba;
+  const X = floor(x * WIDTH);
+  const Y = floor(y * HEIGHT);
+  const i = (Y * HEIGHT + X) * 4;
+  data[i + 0] = remap(r, [0.0, 1.0], [0, 255]);
+  data[i + 1] = remap(g, [0.0, 1.0], [0, 255]);
+  data[i + 2] = remap(b, [0.0, 1.0], [0, 255]);
+  data[i + 3] = remap(a, [0.0, 1.0], [0, 255]);
+}
+
+function erosion(data) {
+  const particles = [];
+  for (let i = 0; i < 100; i++) {
+    const p = new Particle(srand(7 + i, 6 + i), srand(1 + i, 3 + i));
+    particles.push(p);
+  }
+
+  for (let t = 0; t < 10; t++) {
+    for (const p of particles) {
+      const { x, y } = p.position;
+      const [r] = getPixelValue(data, x, y);
+      const [rx] = getPixelValue(data, x + 0.02, y);
+      const [ry] = getPixelValue(data, x, y + 0.02);
+      p.velocity.x = -(ry - r) / 100;
+      p.velocity.y = -(rx - r) / 100;
+    }
+
+    // Update particle position
+    for (const p of particles) {
+      p.position.x += p.velocity.x;
+      p.position.y += p.velocity.y;
+    }
+
+    for (const p of particles) {
+      const { x, y } = p.position;
+      setPixelValue(data, x, y, [0.0, 1.0, 0, 1.0]);
+    }
+  }
+
+  for (const p of particles) {
+    const { x, y } = p.position;
+    setPixelValue(data, x, y, [1.0, 0, 0, 1.0]);
+  }
+}
+
+function main() {
+  const canvas = document.getElementById("heightmap");
+  const ctx = canvas.getContext("2d");
+
+  const imageData = ctx.getImageData(0, 0, WIDTH, HEIGHT);
+  const heightmap = imageData.data;
+
+  generate(heightmap);
+
+  erosion(heightmap);
+
+  ctx.putImageData(imageData, 0, 0);
+
+  // display3D(imageData.data);
 }

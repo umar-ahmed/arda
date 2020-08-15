@@ -30,7 +30,7 @@ Here are the tasks that I hope to accomplish in order to achieve a Minimum Viabl
 - [x] Perlin noise
 - [x] Display a 3D preview of the heightmap using ThreeJS
 - [ ] Implement hydraulic erosion
-- [ ] Load an image from disk
+- [ ] Save heightmap image to disk
 - [ ] Mix node
 
 # Outcome
