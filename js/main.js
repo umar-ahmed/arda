@@ -16,7 +16,10 @@ const mix = (a, b, t) => (1 - t) * a + t * b;
 const clamp = (x, minVal, maxVal) => min(maxVal, max(minVal, x));
 const dot2 = ([a0, a1], [b0, b1]) => a0 * b0 + a1 * b1;
 const norm2 = (a) => sqrt(dot2(a, a));
-const normalize2 = ([a0, a1]) => [a0 / norm2([a0, a1]), a1 / norm2([a0, a1])];
+const normalize2 = ([a0, a1]) => {
+  const length = norm2([a0, a1]);
+  return length === 0.0 ? [0.0, 0.0] : [a0 / length, a1 / length];
+};
 
 function random_direction([s, t]) {
   const u = srand(s, t);
@@ -118,7 +121,7 @@ function render(s, t) {
   // return constant(0.5);
   // return verticalGradient(s, t);
   // return horizontalGradient(s, t);
-  return diagonalGradient(s, t);
+  // return diagonalGradient(s, t);
   // return radialGradient(s, t);
   // return srand(s, t);
   // return perlin(s * 2, t * 2);
@@ -215,8 +218,8 @@ class Particle {
 }
 
 function getPixelValue(data, x, y) {
-  const X = floor(x * WIDTH);
-  const Y = floor(y * HEIGHT);
+  const X = floor(clamp(x, 0.0, 1.0) * WIDTH);
+  const Y = floor(clamp(y, 0.0, 1.0) * HEIGHT);
   const i = (Y * HEIGHT + X) * 4;
   const r = remap(data[i + 0], [0, 255], [0.0, 1.0]);
   const g = remap(data[i + 1], [0, 255], [0.0, 1.0]);
@@ -236,38 +239,88 @@ function setPixelValue(data, x, y, rgba) {
   data[i + 3] = remap(a, [0.0, 1.0], [0, 255]);
 }
 
+const getHeightMapValue = (data, x, y) => getPixelValue(data, x, y)[0];
+const setHeightMapValue = (data, x, y, v) =>
+  setPixelValue(data, x, y, [v, v, v, 1.0]);
+
+function getSurfaceNormal(data, x, y) {
+  const dy =
+    (getHeightMapValue(data, x, y - 0.01) -
+      getHeightMapValue(data, x, y + 0.01)) /
+    2;
+  const dx =
+    (getHeightMapValue(data, x - 0.01, y) -
+      getHeightMapValue(data, x + 0.01, y)) /
+    2;
+  return normalize2([dx, dy]);
+}
+
+const MIN_VOLUME = 0.1;
+const PARTICLE_DENSITY = 1.0;
+const FRICTION = 0.02;
+const EVAPORATION_RATE = 0.01;
+const DEPOSITION_RATE = 0.2;
+const EROSION_RATE = 0.3;
+
 function erosion(data) {
-  const particles = [];
-  for (let i = 0; i < 100; i++) {
-    const p = new Particle(srand(7 + i, 6 + i), srand(1 + i, 3 + i));
-    particles.push(p);
-  }
-
   for (let t = 0; t < 10; t++) {
-    for (const p of particles) {
-      const { x, y } = p.position;
-      const [r] = getPixelValue(data, x, y);
-      const [rx] = getPixelValue(data, x + 0.02, y);
-      const [ry] = getPixelValue(data, x, y + 0.02);
-      p.velocity.x = -(ry - r) / 100;
-      p.velocity.y = -(rx - r) / 100;
-    }
+    const p = new Particle(srand(t, 6), srand(1, t));
+    // const { x, y } = p.position;
+    // setPixelValue(data, x, y, [1.0, 0.0, 0, 1.0]);
 
-    // Update particle position
-    for (const p of particles) {
+    while (p.volume > MIN_VOLUME) {
+      const { x, y } = p.position;
+      const [ax, ay] = getSurfaceNormal(data, x, y);
+
+      // Accelerate particle
+      p.velocity.x += ax / 1000 / (p.volume * PARTICLE_DENSITY);
+      p.velocity.y += ay / 1000 / (p.volume * PARTICLE_DENSITY);
+
+      // Update particle position
       p.position.x += p.velocity.x;
       p.position.y += p.velocity.y;
-    }
 
-    for (const p of particles) {
-      const { x, y } = p.position;
-      setPixelValue(data, x, y, [0.0, 1.0, 0, 1.0]);
-    }
-  }
+      // Apply friction
+      p.velocity.x *= 1.0 - FRICTION;
+      p.velocity.y *= 1.0 - FRICTION;
 
-  for (const p of particles) {
-    const { x, y } = p.position;
-    setPixelValue(data, x, y, [1.0, 0, 0, 1.0]);
+      // Stop simulating particle if it has stopped moving or exceeded bounds
+      if (
+        (p.velocity.x === 0 && p.velocity.y === 0) ||
+        p.position.x >= 1.0 ||
+        p.position.y >= 1.0 ||
+        p.position.x <= 0.0 ||
+        p.position.y <= 0.0
+      )
+        break;
+
+      const oldHeight = getHeightMapValue(data, x, y);
+      const newHeight = getHeightMapValue(data, p.position.x, p.position.y);
+      const deltaHeight = newHeight - oldHeight;
+      const speed = norm2([p.velocity.x, p.velocity.y]);
+      const maxSediment = max(-deltaHeight * p.volume * speed, 0.0);
+
+      // If carrying more sediment than capacity, or if flowing uphill:
+      if (p.sediment > maxSediment || deltaHeight > 0) {
+        const amountToDeposit =
+          deltaHeight > 0
+            ? min(deltaHeight, p.sediment)
+            : (p.sediment - maxSediment) * DEPOSITION_RATE;
+        p.sediment -= amountToDeposit;
+        setHeightMapValue(data, x, y, oldHeight + amountToDeposit);
+      } else {
+        const amountToErode = min(
+          (maxSediment - p.sediment) * EROSION_RATE,
+          -deltaHeight
+        );
+        p.sediment += amountToErode;
+        setHeightMapValue(data, x, y, oldHeight - amountToErode);
+      }
+
+      p.volume *= 1.0 - EVAPORATION_RATE;
+
+      setPixelValue(data, x, y, [1.0, p.volume, 1.0, 1.0]);
+    }
   }
 }
 
@@ -284,5 +337,5 @@ function main() {
 
   ctx.putImageData(imageData, 0, 0);
 
-  // display3D(imageData.data);
+  display3D(imageData.data);
 }
