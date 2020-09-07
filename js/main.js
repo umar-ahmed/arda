@@ -226,11 +226,11 @@ function erosion(heightmap) {
     };
   }
 
-  const scale = 0.5;
+  const scale = 1;
   const erosion = 0.005 * scale;
-  const deposition = 0.000002 * scale;
-  const evaporation = 0.5;
-  const iterations = 300;
+  const deposition = 0.00002 * scale;
+  const evaporation = 0.4;
+  const iterations = 400;
 
   // Run erosion simulation a fixed number of iterations
   for (var i = 0; i < iterations; i++) {
