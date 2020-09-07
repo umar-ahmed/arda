@@ -164,10 +164,19 @@ function display3D(data) {
   document.body.appendChild(renderer.domElement);
 
   const geometry = new THREE.PlaneGeometry(0, 0, SIZE - 1, SIZE - 1);
-  const material = new THREE.MeshLambertMaterial({
-    color: 0x00ff00,
+  const material = new THREE.MeshPhongMaterial({
     side: THREE.DoubleSide,
   });
+
+  const displacementMapTexture = new THREE.DataTexture(
+    data,
+    SIZE,
+    SIZE,
+    THREE.RGBAFormat
+  );
+  material.map = displacementMapTexture;
+  material.displacementMap = displacementMapTexture;
+
   const plane = new THREE.Mesh(geometry, material);
   scene.add(plane);
 
@@ -181,14 +190,6 @@ function display3D(data) {
   camera.position.y = 1;
 
   plane.rotation.x = -PI / 2;
-
-  for (let i = 0; i < plane.geometry.vertices.length; i++) {
-    const terrainValue = data[4 * i] / 255;
-    plane.geometry.vertices[i].z = terrainValue;
-  }
-
-  geometry.computeFaceNormals();
-  geometry.computeVertexNormals();
 
   function animate() {
     requestAnimationFrame(animate);
@@ -227,10 +228,10 @@ function erosion(heightmap) {
   }
 
   const scale = 1;
-  const erosion = 0.005 * scale;
+  const erosion = 0.05 * scale;
   const deposition = 0.00002 * scale;
   const evaporation = 0.4;
-  const iterations = 400;
+  const iterations = 200;
 
   // Run erosion simulation a fixed number of iterations
   for (var i = 0; i < iterations; i++) {
@@ -253,6 +254,7 @@ function erosion(heightmap) {
           let stayingWater = (water * 0.0002) / (down * scale + 1);
           water = water - stayingWater;
 
+          // Distribute water to neighbors according to direction of descent
           particles[x + 1][y].newWater +=
             (max(particles[x][y].z - particles[x + 1][y].z, 0) / down) * water;
           particles[x + 1][y + 1].newWater +=
