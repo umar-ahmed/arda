@@ -1,7 +1,6 @@
 window.addEventListener("DOMContentLoaded", main);
 
-const WIDTH = 256;
-const HEIGHT = 256;
+const SIZE = 256;
 
 const pow = Math.pow;
 const sqrt = Math.sqrt;
@@ -135,11 +134,11 @@ function generate(heightmap) {
   for (let i = 0; i < heightmap.length; i += 4) {
     const j = i / 4;
 
-    const x = j % WIDTH;
-    const y = floor(j / WIDTH);
+    const x = j % SIZE;
+    const y = floor(j / SIZE);
 
-    const s = remap(x, [0, WIDTH], [0.0, 1.0]);
-    const t = remap(y, [0, HEIGHT], [0.0, 1.0]);
+    const s = remap(x, [0, SIZE], [0.0, 1.0]);
+    const t = remap(y, [0, SIZE], [0.0, 1.0]);
 
     const r = render(s, t);
     const v = remap(r, [0.0, 1.0], [0, 255]);
@@ -164,7 +163,7 @@ function display3D(data) {
   renderer.setSize(window.innerWidth, window.innerHeight);
   document.body.appendChild(renderer.domElement);
 
-  const geometry = new THREE.PlaneGeometry(0, 0, WIDTH - 1, HEIGHT - 1);
+  const geometry = new THREE.PlaneGeometry(0, 0, SIZE - 1, SIZE - 1);
   const material = new THREE.MeshLambertMaterial({
     color: 0x00ff00,
     side: THREE.DoubleSide,
@@ -202,128 +201,118 @@ function display3D(data) {
   animate();
 }
 
-class Particle {
-  constructor(x, y) {
-    this.position = {
+function erosion(heightmap) {
+  let particles = [];
+  for (let i = 0; i < SIZE; i++) {
+    particles[i] = [];
+  }
+
+  // Create a water particle at each point in heightmap
+  for (let i = 0; i < heightmap.length; i += 4) {
+    const j = i / 4;
+
+    const x = j % SIZE;
+    const y = floor(j / SIZE);
+
+    particles[x][y] = {
       x,
       y,
+      z: remap(heightmap[i], [0, 255], [0.0, 1.0]),
+      erosion: 0,
+      sediment: 0,
+      water: 1,
+      newWater: 0,
+      down: 0,
     };
-    this.velocity = {
-      x: 0.0,
-      y: 0.0,
-    };
-    this.volume = 1.0;
-    this.sediment = 0.0;
   }
-}
 
-function getPixelValue(data, x, y) {
-  const X = floor(clamp(x, 0.0, 1.0) * WIDTH);
-  const Y = floor(clamp(y, 0.0, 1.0) * HEIGHT);
-  const i = (Y * HEIGHT + X) * 4;
-  const r = remap(data[i + 0], [0, 255], [0.0, 1.0]);
-  const g = remap(data[i + 1], [0, 255], [0.0, 1.0]);
-  const b = remap(data[i + 2], [0, 255], [0.0, 1.0]);
-  const a = remap(data[i + 3], [0, 255], [0.0, 1.0]);
-  return [r, g, b, a];
-}
+  const scale = 0.5;
+  const erosion = 0.005 * scale;
+  const deposition = 0.000002 * scale;
+  const evaporation = 0.5;
+  const iterations = 300;
 
-function setPixelValue(data, x, y, rgba) {
-  const [r, g, b, a] = rgba;
-  const X = floor(x * WIDTH);
-  const Y = floor(y * HEIGHT);
-  const i = (Y * HEIGHT + X) * 4;
-  data[i + 0] = remap(r, [0.0, 1.0], [0, 255]);
-  data[i + 1] = remap(g, [0.0, 1.0], [0, 255]);
-  data[i + 2] = remap(b, [0.0, 1.0], [0, 255]);
-  data[i + 3] = remap(a, [0.0, 1.0], [0, 255]);
-}
+  // Run erosion simulation a fixed number of iterations
+  for (var i = 0; i < iterations; i++) {
+    for (let x = 1; x < SIZE - 1; x++) {
+      for (let y = 1; y < SIZE - 1; y++) {
+        let down = 0;
+        down += max(particles[x][y].z - particles[x + 1][y].z, 0);
+        down += max(particles[x][y].z - particles[x + 1][y + 1].z, 0);
+        down += max(particles[x][y].z - particles[x + 1][y - 1].z, 0);
+        down += max(particles[x][y].z - particles[x][y + 1].z, 0);
+        down += max(particles[x][y].z - particles[x][y - 1].z, 0);
+        down += max(particles[x][y].z - particles[x - 1][y].z, 0);
+        down += max(particles[x][y].z - particles[x - 1][y + 1].z, 0);
+        down += max(particles[x][y].z - particles[x - 1][y - 1].z, 0);
 
-const getHeightMapValue = (data, x, y) => getPixelValue(data, x, y)[0];
-const setHeightMapValue = (data, x, y, v) =>
-  setPixelValue(data, x, y, [v, v, v, 1.0]);
+        particles[x][y].down = down;
 
-function getSurfaceNormal(data, x, y) {
-  const dy =
-    (getHeightMapValue(data, x, y - 0.01) -
-      getHeightMapValue(data, x, y + 0.01)) /
-    2;
-  const dx =
-    (getHeightMapValue(data, x - 0.01, y) -
-      getHeightMapValue(data, x + 0.01, y)) /
-    2;
-  return normalize2([dx, dy]);
-}
+        if (down != 0) {
+          let water = particles[x][y].water * evaporation;
+          let stayingWater = (water * 0.0002) / (down * scale + 1);
+          water = water - stayingWater;
 
-const MIN_VOLUME = 0.1;
-const PARTICLE_DENSITY = 1.0;
-const FRICTION = 0.1;
-const EVAPORATION_RATE = 0.1;
-const DEPOSITION_RATE = 0.2;
-const EROSION_RATE = 0.3;
-const dt = 1 / 100;
+          particles[x + 1][y].newWater +=
+            (max(particles[x][y].z - particles[x + 1][y].z, 0) / down) * water;
+          particles[x + 1][y + 1].newWater +=
+            (max(particles[x][y].z - particles[x + 1][y + 1].z, 0) / down) *
+            water;
+          particles[x + 1][y - 1].newWater +=
+            (max(particles[x][y].z - particles[x + 1][y - 1].z, 0) / down) *
+            water;
+          particles[x][y + 1].newWater +=
+            (max(particles[x][y].z - particles[x][y + 1].z, 0) / down) * water;
+          particles[x][y - 1].newWater +=
+            (max(particles[x][y].z - particles[x][y - 1].z, 0) / down) * water;
+          particles[x - 1][y].newWater +=
+            (max(particles[x][y].z - particles[x - 1][y].z, 0) / down) * water;
+          particles[x - 1][y + 1].newWater +=
+            (max(particles[x][y].z - particles[x - 1][y + 1].z, 0) / down) *
+            water;
+          particles[x - 1][y - 1].newWater +=
+            (max(particles[x][y].z - particles[x - 1][y - 1].z, 0) / down) *
+            water;
 
-function erosion(data) {
-  for (let t = 0; t < 20; t++) {
-    const p = new Particle(srand(t, 6), srand(1, t));
-    // const { x, y } = p.position;
-    // setPixelValue(data, x, y, [1.0, 0.0, 0, 1.0]);
-
-    while (p.volume > MIN_VOLUME) {
-      const { x, y } = p.position;
-      const [Fx, Fy] = getSurfaceNormal(data, x, y);
-      const mass = p.volume * PARTICLE_DENSITY;
-      const [ax, ay] = [Fx / mass, Fy / mass];
-
-      // Acceleration due to gravity
-      p.velocity.x += dt * ax;
-      p.velocity.y += dt * ay;
-
-      // Update particle position
-      p.position.x += dt * p.velocity.x;
-      p.position.y += dt * p.velocity.y;
-
-      // Acceleration due to friction
-      p.velocity.x *= 1.0 - dt * FRICTION;
-      p.velocity.y *= 1.0 - dt * FRICTION;
-
-      // Stop simulating particle if it has stopped moving or exceeded bounds
-      if (
-        (p.velocity.x === 0 && p.velocity.y === 0) ||
-        p.position.x >= 1.0 ||
-        p.position.y >= 1.0 ||
-        p.position.x <= 0.0 ||
-        p.position.y <= 0.0
-      )
-        break;
-
-      const oldHeight = getHeightMapValue(data, x, y);
-      const newHeight = getHeightMapValue(data, p.position.x, p.position.y);
-      const deltaHeight = newHeight - oldHeight;
-      const uphill = deltaHeight > 0;
-      const speed = norm2([p.velocity.x, p.velocity.y]);
-      const maxSediment = max(-deltaHeight * p.volume * speed, 0.0);
-
-      // If carrying more sediment than capacity, or if flowing uphill:
-      if (p.sediment > maxSediment || uphill) {
-        const amountToDeposit = uphill
-          ? min(deltaHeight, p.sediment)
-          : (p.sediment - maxSediment) * dt * DEPOSITION_RATE;
-        p.sediment -= amountToDeposit;
-        setHeightMapValue(data, x, y, oldHeight + amountToDeposit);
-      } else {
-        const amountToErode = min(
-          (maxSediment - p.sediment) * dt * EROSION_RATE,
-          -deltaHeight
-        );
-        p.sediment += amountToErode;
-        setHeightMapValue(data, x, y, oldHeight - amountToErode);
+          particles[x][y].water = 1 + stayingWater;
+        }
       }
-
-      p.volume *= 1.0 - dt * EVAPORATION_RATE;
-
-      setPixelValue(data, x, y, [1.0, p.volume, 1.0, 1.0]);
     }
+
+    for (let x = 1; x < SIZE - 1; x++) {
+      for (let y = 1; y < SIZE - 1; y++) {
+        particles[x][y].water += particles[x][y].newWater;
+        particles[x][y].newWater = 0;
+
+        const oldZ = particles[x][y].z;
+        particles[x][y].z +=
+          -(particles[x][y].down - 0.005 / scale) *
+            particles[x][y].water *
+            erosion +
+          particles[x][y].water * deposition;
+        particles[x][y].erosion = oldZ - particles[x][y].z;
+
+        if (oldZ < particles[x][y].z) {
+          particles[x][y].water = max(
+            particles[x][y].water - (particles[x][y].z - oldZ) * 1000,
+            0
+          );
+        }
+      }
+    }
+  }
+
+  // Update heightmap
+  for (let i = 0; i < heightmap.length; i += 4) {
+    const j = i / 4;
+
+    const x = j % SIZE;
+    const y = floor(j / SIZE);
+
+    const v = remap(particles[x][y].z, [0.0, 1.0], [0, 255]);
+
+    heightmap[i] = heightmap[i + 1] = heightmap[i + 2] = v;
+    heightmap[i + 3] = 255;
   }
 }
 
@@ -331,7 +320,7 @@ function main() {
   const canvas = document.getElementById("heightmap");
   const ctx = canvas.getContext("2d");
 
-  const imageData = ctx.getImageData(0, 0, WIDTH, HEIGHT);
+  const imageData = ctx.getImageData(0, 0, SIZE, SIZE);
   const heightmap = imageData.data;
 
   generate(heightmap);
